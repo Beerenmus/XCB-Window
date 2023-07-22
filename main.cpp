@@ -1,6 +1,16 @@
 #include <xcb/xcb.h>
 #include<iostream>
 #include<cstring>
+#include<tuple>
+#include<assert.h>
+
+xcb_atom_t requestAtom(xcb_connection_t* connection, std::string name) {
+    xcb_intern_atom_cookie_t cookie = xcb_intern_atom(connection, 0, static_cast<uint16_t>(name.length()), name.c_str());
+    xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(connection, cookie, NULL);
+    xcb_atom_t atom = reply->atom;
+    free(reply);
+    return atom;
+}
 
 int main() {
 
@@ -11,7 +21,7 @@ int main() {
     xcb_screen_iterator_t m_screenIterator;
 
     m_connection = xcb_connect(NULL, NULL);
-    if (m_connection == NULL || xcb_connection_has_error(m_connection)) {
+    if (m_connection == NULL || xcb_connection_has_error(m_connection) < 0) {
         std::cout << "Fehler beim Herstellen der Verbindung zum X-Server." << std::endl;
         return false;
     }
@@ -42,16 +52,8 @@ int main() {
     values[0] = m_screen->white_pixel;
     xcb_create_window(m_connection, m_screen->root_depth, m_windowID, m_screen->root, 10, 10, 1200, 720, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT, m_screen->root_visual, mask, values);
 
-    // Set the WM_DELETE_WINDOW atom as the protocol for window close
-    xcb_intern_atom_cookie_t wmDeleteCookie = xcb_intern_atom(m_connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
-    xcb_intern_atom_reply_t *wmDeleteReply = xcb_intern_atom_reply(m_connection, wmDeleteCookie, NULL);
-    xcb_atom_t deleteAtom = wmDeleteReply->atom;
-    free(wmDeleteReply);
-
-    xcb_intern_atom_cookie_t wmProtocolCookie = xcb_intern_atom(m_connection, 0, strlen("WM_PROTOCOLS"), "WM_PROTOCOLS");
-    xcb_intern_atom_reply_t *wmProtocolReply = xcb_intern_atom_reply(m_connection, wmProtocolCookie, NULL);
-    xcb_atom_t protocolAtom = wmProtocolReply->atom;
-    free(wmProtocolReply);
+    xcb_atom_t deleteAtom = requestAtom(m_connection, "WM_DELETE_WINDOW");
+    xcb_atom_t protocolAtom = requestAtom(m_connection, "WM_PROTOCOLS");
 
     xcb_change_property(m_connection, XCB_PROP_MODE_REPLACE, m_windowID, protocolAtom, 4, 32, 1, &deleteAtom);
     xcb_change_property(m_connection, XCB_PROP_MODE_REPLACE, m_windowID, XCB_ATOM_WM_HINTS, XCB_ATOM_ATOM, 32, 1, &deleteAtom);
