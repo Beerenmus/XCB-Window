@@ -48,8 +48,8 @@ int main() {
     m_windowID = xcb_generate_id(m_connection);
 
     mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-    values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY;
-    values[0] = m_screen->white_pixel;
+    values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_KEY_RELEASE;
+    values[0] = m_screen->black_pixel;
     xcb_create_window(m_connection, m_screen->root_depth, m_windowID, m_screen->root, 10, 10, 1200, 720, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT, m_screen->root_visual, mask, values);
 
     xcb_atom_t deleteAtom = requestAtom(m_connection, "WM_DELETE_WINDOW");
@@ -60,7 +60,7 @@ int main() {
 
     std::string title("Vulkan Application");
     xcb_change_property(m_connection, XCB_PROP_MODE_REPLACE, m_windowID, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, static_cast<uint32_t>(title.length()), title.c_str());
-
+    
     xcb_map_window(m_connection, m_windowID);
 
     xcb_flush(m_connection);
@@ -73,6 +73,24 @@ int main() {
         while(generic_event = xcb_poll_for_event(m_connection)) {
 
             switch (generic_event->response_type & ~0x80) {
+
+                case XCB_EXPOSE:
+                {
+                    xcb_expose_event_t* event = reinterpret_cast<xcb_expose_event_t*>(generic_event);
+                    std::cout << "Width: " << event->width << " " << "Height: " << event->height << std::endl;
+                    xcb_flush(m_connection);
+                }
+
+                case XCB_KEY_RELEASE: 
+                {
+                    xcb_key_press_event_t* event = reinterpret_cast<xcb_key_press_event_t*>(generic_event);
+                    switch(event->detail) {
+
+                        case 9:
+                            finished = true;
+                            break;   
+                    }
+                }
 
                 case XCB_DESTROY_NOTIFY:
                 {
