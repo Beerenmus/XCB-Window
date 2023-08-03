@@ -3,7 +3,9 @@
 #include <xcb/xcb.h>
 #include <iostream>
 
-class Window {
+#include "Keys.hpp"
+
+class Window final {
 
     private:
         xcb_connection_t* m_connection;
@@ -12,11 +14,16 @@ class Window {
         xcb_window_t m_windowID;
         xcb_screen_iterator_t m_screenIterator;
 
+        KeycodeMap map;
+
+    private:
         bool finished = false;
-
-        xcb_atom_t requestAtom(xcb_connection_t* connection, std::string name);
-
+        
+    private:
         xcb_atom_t deleteAtom;
+
+    private:
+        xcb_atom_t requestAtom(xcb_connection_t* connection, std::string name);
 
     public:
         void create();

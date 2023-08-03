@@ -10,6 +10,8 @@ add_executable(xcb_window
     main.cpp
     Window.hpp
     Window.cpp
+    Keys.hpp
+    Keys.cpp
 )
 
 target_link_libraries(xcb_window PUBLIC xcb)
