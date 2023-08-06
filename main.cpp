@@ -10,6 +10,8 @@ int main() {
         window.pollEvent();
     } 
 
+    window.pollEvent();
+
     window.destroy();
 
     return 0;

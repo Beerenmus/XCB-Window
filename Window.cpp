@@ -37,6 +37,7 @@ KeycodeMap captureKeyboard(xcb_connection_t* connection, const xcb_setup_t* setu
     return keyboardMap;
 }
 
+
 xcb_atom_t Window::requestAtom(xcb_connection_t* connection, std::string name) {
     xcb_intern_atom_cookie_t cookie = xcb_intern_atom(connection, 0, static_cast<uint16_t>(name.length()), name.c_str());
     xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(connection, cookie, NULL);
@@ -74,7 +75,7 @@ void Window::create() {
 
     m_windowID = xcb_generate_id(m_connection);
 
-    mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+    mask = XCB_CW_BACK_PIXEL | /* XCB_CW_BIT_GRAVITY | XCB_CW_OVERRIDE_REDIRECT | */ XCB_CW_EVENT_MASK;;
     values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_KEY_PRESS;
     values[0] = m_screen->black_pixel;
     xcb_create_window(m_connection, m_screen->root_depth, m_windowID, m_screen->root, 10, 10, 1200, 720, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT, m_screen->root_visual, mask, values);
@@ -91,6 +92,8 @@ void Window::create() {
     
     xcb_auto_repeat_mode_t mode = XCB_AUTO_REPEAT_MODE_ON;
     xcb_change_keyboard_control(m_connection, XCB_KB_AUTO_REPEAT_MODE, &mode);
+
+    //xcb_atom_t modifyHintAtom = requestAtom(m_connection, "_MOTIF_WM_HINTS");
 
     map = captureKeyboard(m_connection, m_setup);
 
@@ -116,17 +119,17 @@ void Window::pollEvent() {
                     xcb_expose_event_t* event = reinterpret_cast<xcb_expose_event_t*>(generic_event);
                     std::cout << "Width: " << event->width << " " << "Height: " << event->height << std::endl;
                     xcb_flush(m_connection);
+                    break;
                 }
 
-                case XCB_KEY_PRESS: {
-                    
+                case XCB_KEY_PRESS: 
+                {    
                     xcb_key_press_event_t *key_event = reinterpret_cast<xcb_key_press_event_t*>(generic_event);
 
                     auto iter = map.find(KeycodeModifier(key_event->detail, 0));
                     if(iter != map.end()) {
                         std::cout << "Key: " << iter->second << std::endl;
                     }
-
                     break;
                 }
 
@@ -134,30 +137,22 @@ void Window::pollEvent() {
                 {
                     xcb_key_release_event_t* key_event = reinterpret_cast<xcb_key_release_event_t*>(generic_event);
 
-                    auto iter = map.find(KeycodeModifier(key_event->detail, 0));
-                    if(iter != map.end() && iter->second == KEY_Escape) {
+                    auto iter = map.find(KeycodeModifier(key_event->detail, 1));
+                    if((key_event->state & KeyModifier::MODKEY_Shift) != 0 && iter->second == KEY_A) {
                         finished = true;
                     }
+                    break;
                 }
-
-                case XCB_DESTROY_NOTIFY:
-                {
-                    xcb_destroy_notify_event_t* destroyEvent = reinterpret_cast<xcb_destroy_notify_event_t*>(generic_event);
-                    if (destroyEvent->window == m_windowID) {
-                        std::cout << "Window destroyed!" << std::endl;
-                    }
-                }
-                break;
 
                 case XCB_CLIENT_MESSAGE:
                 {
                     xcb_client_message_event_t* clientMessageEvent = reinterpret_cast<xcb_client_message_event_t*>(generic_event);
                     
-                    if (clientMessageEvent->window == m_windowID && clientMessageEvent->data.data32[0] == deleteAtom) {
+                    if (clientMessageEvent->data.data32[0] == deleteAtom) {
                         finished = true;
                     }
+                    break;
                 }
-                break;
             }
             
             free(generic_event);
