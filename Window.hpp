@@ -27,6 +27,8 @@ class Window final {
 
     public:
         void create();
+        void show();
+        void hide();
         bool advanceToNextFrame();
         void pollEvent();
         void destroy();

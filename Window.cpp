@@ -97,14 +97,44 @@ void Window::create() {
 
     map = captureKeyboard(m_connection, m_setup);
 
-    xcb_map_window(m_connection, m_windowID);
+    xcb_flush(m_connection);
 
+}
+
+void Window::show() {
+    xcb_map_window(m_connection, m_windowID);
+    xcb_flush(m_connection);
+}
+
+void Window::hide() {
+    xcb_unmap_window(m_connection, m_windowID);
     xcb_flush(m_connection);
 }
 
 bool Window::advanceToNextFrame() {
     return !finished;
 }
+
+#include <memory>
+#include <vector>
+
+class WindowEvent {
+
+};
+
+class ExposeWindowEvent : public WindowEvent {
+
+    private:
+        uint16_t mWidth;
+        uint16_t mHeight;
+
+    public:
+        ExposeWindowEvent(uint16_t width, uint16_t height) : mWidth(width), mHeight(height) {}
+};
+
+using Events = std::vector<std::unique_ptr<WindowEvent>>;
+
+Events events;
 
 void Window::pollEvent() {
 
@@ -117,8 +147,7 @@ void Window::pollEvent() {
                 case XCB_EXPOSE:
                 {
                     xcb_expose_event_t* event = reinterpret_cast<xcb_expose_event_t*>(generic_event);
-                    std::cout << "Width: " << event->width << " " << "Height: " << event->height << std::endl;
-                    xcb_flush(m_connection);
+                    events.push_back(std::make_unique<ExposeWindowEvent>(event->width, event->height));
                     break;
                 }
 

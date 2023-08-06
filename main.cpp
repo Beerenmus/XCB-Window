@@ -5,12 +5,14 @@ int main() {
     Window window;
     window.create();
 
+    window.show();
+
     while(window.advanceToNextFrame()) {
 
         window.pollEvent();
     } 
 
-    window.pollEvent();
+    window.hide();
 
     window.destroy();
 
