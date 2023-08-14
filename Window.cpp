@@ -76,8 +76,8 @@ void Window::create() {
     m_windowID = xcb_generate_id(m_connection);
 
     mask = XCB_CW_BACK_PIXEL | /* XCB_CW_BIT_GRAVITY | XCB_CW_OVERRIDE_REDIRECT | */ XCB_CW_EVENT_MASK;;
-    values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_KEY_PRESS;
     values[0] = m_screen->black_pixel;
+    values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_KEY_PRESS;
     xcb_create_window(m_connection, m_screen->root_depth, m_windowID, m_screen->root, 10, 10, 1200, 720, 1, XCB_WINDOW_CLASS_INPUT_OUTPUT, m_screen->root_visual, mask, values);
 
 
@@ -132,7 +132,21 @@ class ExposeWindowEvent : public WindowEvent {
         ExposeWindowEvent(uint16_t width, uint16_t height) : mWidth(width), mHeight(height) {}
 };
 
-using Events = std::vector<std::unique_ptr<WindowEvent>>;
+struct ExposeData {
+    uint16_t width;
+    uint16_t height;
+};
+
+class Visitor {
+
+    public:
+        void visit(ExposeData data) {
+            std::cout << "Width: " << data.width << "\tHeight: " << data.height << std::endl;
+        }
+};
+
+#include <functional>
+using Events = std::vector<std::function<void(Visitor&)>>;
 
 Events events;
 
@@ -140,19 +154,39 @@ void Window::pollEvent() {
 
     xcb_generic_event_t* generic_event;
 
+    int expose_count = 0;
+
+    xcb_map_window(m_connection, m_windowID);
+
+
     while(generic_event = xcb_poll_for_event(m_connection)) {
 
             switch (generic_event->response_type & ~0x80) {
 
-                case XCB_EXPOSE:
-                {
-                    xcb_expose_event_t* event = reinterpret_cast<xcb_expose_event_t*>(generic_event);
-                    events.push_back(std::make_unique<ExposeWindowEvent>(event->width, event->height));
+                case XCB_CONFIGURE_NOTIFY: {
+
+                    xcb_configure_notify_event_t* event = reinterpret_cast<xcb_configure_notify_event_t*>(event);
+
+                    if(event) {
+                        std::cout << "Width: " << event->width << " Height: " << event->height << std::endl;
+                    }
+
                     break;
                 }
 
-                case XCB_KEY_PRESS: 
-                {    
+                case XCB_EXPOSE: {
+                    xcb_expose_event_t* event = reinterpret_cast<xcb_expose_event_t*>(generic_event);
+                    events.push_back([width = event->width, height = event->height](Visitor& visitor){
+                        visitor.visit(ExposeData{width, height});
+                    });
+                    
+                    expose_count++;
+                    std::cout << "Expose Count: " << expose_count << std::endl;
+
+                    break;
+                }
+
+                case XCB_KEY_PRESS: {    
                     xcb_key_press_event_t *key_event = reinterpret_cast<xcb_key_press_event_t*>(generic_event);
 
                     auto iter = map.find(KeycodeModifier(key_event->detail, 0));
@@ -189,6 +223,11 @@ void Window::pollEvent() {
 }
 
 void Window::destroy() {
+
+    Visitor visitor;
+    for(auto& event : events) {
+        event(visitor);
+    }
 
     xcb_destroy_window(m_connection, m_windowID);
     xcb_flush(m_connection);
