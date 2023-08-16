@@ -156,9 +156,6 @@ void Window::pollEvent() {
 
     int expose_count = 0;
 
-    xcb_map_window(m_connection, m_windowID);
-
-
     while(generic_event = xcb_poll_for_event(m_connection)) {
 
             switch (generic_event->response_type & ~0x80) {
